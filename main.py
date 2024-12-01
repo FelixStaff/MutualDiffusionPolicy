@@ -108,7 +108,7 @@ if __name__ == "__main__":
     #@markdown Takes about an hour. If you don't want to wait, skip to the next cell
     #@markdown to load pre-trained weights
 
-    num_epochs = 100
+    num_epochs = 5
 
     # Exponential Moving Average
     # accelerates training and improves stability
@@ -192,6 +192,9 @@ if __name__ == "__main__":
         tglobal.set_postfix(loss=np.mean(epoch_loss))
         # Save the model
         torch.save(noise_pred_net.state_dict(), 'model/saves/noise_pred_net.pth')
+        # Also save the history of the loss
+        print("Saving the loss history")
+        np.save('model/saves/global_loss_normal.npy', np.array(global_loss))
 
     # Visualize the loss
     plt.plot(global_loss)

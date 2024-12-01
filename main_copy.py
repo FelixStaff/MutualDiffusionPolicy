@@ -21,6 +21,12 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
+def update_target(ma_net, net, update_rate=1e-1):
+        # update moving average network parameters using network
+        for ma_net_param, net_param in zip(ma_net.parameters(), net.parameters()):
+            ma_net_param.data.copy_((1.0 - update_rate) \
+                                    * ma_net_param.data + update_rate*net_param.data)
+
 if __name__ == "__main__":
 
     # Dataset Loading
@@ -115,7 +121,7 @@ if __name__ == "__main__":
     #@markdown Takes about an hour. If you don't want to wait, skip to the next cell
     #@markdown to load pre-trained weights
 
-    num_epochs = 100
+    num_epochs = 10
 
     # Exponential Moving Average
     # accelerates training and improves stability
@@ -128,12 +134,12 @@ if __name__ == "__main__":
     # Note that EMA parametesr are not optimized
     optimizer = torch.optim.AdamW(
         params=noise_pred_net.parameters(),
-        lr=1e-4, weight_decay=1e-6)
+        lr=1e-4, weight_decay=1e-7)
     
     # The Mine optimizer with adam
     mine_optimizer = torch.optim.AdamW(
         params=mine.parameters(),
-        lr=1e-4, weight_decay=1e-6)
+        lr=1e-4, weight_decay=1e-7)
     # Cosine LR schedule with linear warmup
     lr_scheduler = get_scheduler(
         name='cosine',
@@ -142,7 +148,8 @@ if __name__ == "__main__":
         num_training_steps=len(dataloader) * num_epochs
     )
 
-
+    # Load the model
+    
     tglobal = tqdm(range(num_epochs), desc='Epoch')
     global_loss = list()
     for epoch_idx in tglobal:
@@ -193,8 +200,8 @@ if __name__ == "__main__":
             )
 
             # L2 loss
-            loss = nn.functional.mse_loss(noise_pred, noise) + 0.01 * m_loss
-
+            loss_t = nn.functional.mse_loss(noise_pred, noise)
+            loss = loss_t + 0.01 * m_loss
             # optimize
             optimizer.zero_grad()
             loss.backward()
@@ -223,20 +230,24 @@ if __name__ == "__main__":
             m_train_loss.backward()
             mine_optimizer.step()
 
+            #update_target(ma_net=ema, net=noise_pred_net, update_rate=1e-1)
+
 
             # logging the loss
             loss_cpu = loss.item()
             epoch_loss.append(loss_cpu)
-            global_loss.append(loss_cpu)
-            tepoch.set_postfix(loss=loss_cpu)
+            global_loss.append(loss_t.item())
+            tepoch.set_postfix(loss_t=loss_t.item(), m_loss=m_train_loss.item(), loss_cpu=loss_cpu, mi_loss=m_loss.item())
 
             
         # logging the loss in the epoch progress bar
-        tglobal.set_postfix(loss=np.mean(epoch_loss))
+        tglobal.set_postfix(loss=np.mean(epoch_loss), m_loss=m_train_loss.item())
         
         # Save the model
-        torch.save(noise_pred_net.state_dict(), 'model/saves/noise_pred_net.pth')
+        torch.save(noise_pred_net.state_dict(), 'model/saves/noise_pred_net_mine.pth')
         torch.save(mine.state_dict(), 'model/saves/mine.pth')
+        # Also save the history of the loss
+        np.save('model/saves/global_loss_m.npy', np.array(global_loss))
     # Weights of the EMA model
     # is used for inference
     ema_noise_pred_net = noise_pred_net

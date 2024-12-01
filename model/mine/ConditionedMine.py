@@ -61,25 +61,16 @@ class MINEConditionalNet(nn.Module):
             for ind, (dim_in, dim_out) in enumerate(in_out)
         ])
 
-        # Upsampling
-        self.up_modules = nn.ModuleList([
-            nn.ModuleList([
-                ConditionalResidualBlock1D(dim_out*2, dim_in, cond_dim=cond_dim,
-                                           kernel_size=kernel_size, n_groups=n_groups),
-                ConditionalResidualBlock1D(dim_in, dim_in, cond_dim=cond_dim,
-                                           kernel_size=kernel_size, n_groups=n_groups),
-                Upsample1d(dim_in) if ind < len(in_out) - 1 else nn.Identity()
-            ])
-            for ind, (dim_in, dim_out) in enumerate(reversed(in_out[1:]))
-        ])
+        
+        # Input is last hidden * 4
 
         # Capa final adaptada a MINE
         self.final_linear = nn.Sequential(
-            nn.Linear(start_dim, start_dim),
-            nn.Mish(),
-            nn.Linear(start_dim, start_dim),
-            nn.Mish(),
-            nn.Linear(start_dim, 1)
+            nn.Linear(down_dims[-1] * 4, down_dims[-2]),
+            nn.ReLU(),
+            nn.Linear(down_dims[-2], down_dims[-3]),
+            nn.ReLU(),
+            nn.Linear(down_dims[-3], 1)
         )
 
         print("number of parameters: {:e}".format(
@@ -120,15 +111,9 @@ class MINEConditionalNet(nn.Module):
 
         for mid_module in self.mid_modules:
             x = mid_module(x, global_feature)
-
-        for resnet, resnet2, upsample in self.up_modules:
-            x = torch.cat((x, h.pop()), dim=1)
-            x = resnet(x, global_feature)
-            x = resnet2(x, global_feature)
-            x = upsample(x)
-
+        
         # Capa final para obtener T(X)
-        x = x.mean(dim=-1)  # Promedio a lo largo del tiempo para un escalar T
+        x = x.view(x.size(0), -1)
         T_x = self.final_linear(x)
 
         return T_x.squeeze(-1)  # Retorna T(X) como un escalar
