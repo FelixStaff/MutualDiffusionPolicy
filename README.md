@@ -18,6 +18,10 @@ This paper presents a novel regularization method designed to enhance trajectory
 
 
 
+https://github.com/user-attachments/assets/57570e90-52a2-4b78-8198-4de826dfe527
+
+
+
 ## Installation
 
 To install the required dependencies, run the following command:
