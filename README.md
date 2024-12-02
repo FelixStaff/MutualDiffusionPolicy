@@ -35,7 +35,7 @@ pip install -r requirements.txt
 To train the model, run the following command:
 
 ```bash
-python train.py
+python main.py
 ```
 
 This command will train the model for 100 epochs and save the model weights in the `model\saves` directory.
@@ -43,7 +43,7 @@ This command will train the model for 100 epochs and save the model weights in t
 To test the model, run the following command:
 
 ```bash
-python test.py
+python final_test.py
 ```
 
 This will generate a render for the environment and display the results, which are calculated by the average of the maximum reward obtained in 100 episodes.
